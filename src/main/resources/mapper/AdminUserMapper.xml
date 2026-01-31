@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.AdminUserMapper">
+
+    <resultMap id="AdminUserRM" type="com.example.xianzhiyun.entity.AdminUser">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="role" property="role"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="long" resultMap="AdminUserRM">
+        SELECT id, username, password, role, created_at, updated_at FROM admin_user WHERE id = #{id}
+    </select>
+
+    <select id="selectByUsername" parameterType="string" resultMap="AdminUserRM">
+        SELECT id, username, password, role, created_at, updated_at FROM admin_user WHERE username = #{username} LIMIT 1
+    </select>
+
+    <select id="selectAll" resultMap="AdminUserRM">
+        SELECT id, username, password, role, created_at, updated_at FROM admin_user ORDER BY id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.AdminUser" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO admin_user (username, password, role, created_at, updated_at)
+        VALUES (#{username}, #{password}, #{role}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.example.xianzhiyun.entity.AdminUser">
+        UPDATE admin_user
+        SET username = #{username},
+            password = #{password},
+            role = #{role},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM admin_user WHERE id = #{id}
+    </delete>
+
+</mapper>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.CommunityCategoryMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.xianzhiyun.entity.CommunityCategory">
+        <id column="id" property="id"/>
+        <result column="category_key" property="categoryKey"/>
+        <result column="name" property="name"/>
+        <result column="sort" property="sort"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.CommunityCategory" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO community_category (category_key, name, sort, status)
+        VALUES (#{categoryKey}, #{name}, #{sort}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.example.xianzhiyun.entity.CommunityCategory">
+        UPDATE community_category
+        SET category_key = #{categoryKey},
+            name = #{name},
+            sort = #{sort},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM community_category WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" parameterType="long" resultMap="BaseResultMap">
+        SELECT * FROM community_category WHERE id = #{id}
+    </select>
+
+    <select id="selectByKey" parameterType="string" resultMap="BaseResultMap">
+        SELECT * FROM community_category WHERE category_key = #{categoryKey} LIMIT 1
+    </select>
+
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT * FROM community_category WHERE status = 1 ORDER BY sort ASC, id ASC
+    </select>
+
+</mapper>

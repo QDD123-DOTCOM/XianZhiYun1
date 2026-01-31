@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.DonationFeedbackMapper">
+
+    <resultMap id="DonationFeedbackRM" type="com.example.xianzhiyun.entity.DonationFeedback">
+        <id column="id" property="id"/>
+        <result column="item_id" property="itemId"/>
+        <result column="recipient_name" property="recipientName"/>
+        <result column="message" property="message"/>
+        <result column="photo_url" property="photoUrl"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="long" resultMap="DonationFeedbackRM">
+        SELECT id, item_id, recipient_name, message, photo_url, created_at
+        FROM donation_feedback
+        WHERE id = #{id}
+    </select>
+
+    <!-- 支持按 itemId 或按 eventId（通过子查询 donation_item） -->
+    <select id="selectList" parameterType="map" resultMap="DonationFeedbackRM">
+        SELECT id, item_id, recipient_name, message, photo_url, created_at
+        FROM donation_feedback
+        <where>
+            <if test="params != null and params.itemId != null">
+                AND item_id = #{params.itemId}
+            </if>
+            <if test="params != null and params.eventId != null">
+                AND item_id IN (
+                SELECT id FROM donation_item WHERE event_id = #{params.eventId}
+                )
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        <if test="params != null and params.limit != null">
+            LIMIT #{params.limit}
+        </if>
+    </select>
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.DonationFeedback" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO donation_feedback (item_id, recipient_name, message, photo_url, created_at)
+        VALUES (#{itemId}, #{recipientName}, #{message}, #{photoUrl}, NOW())
+    </insert>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM donation_feedback WHERE id = #{id}
+    </delete>
+
+</mapper>

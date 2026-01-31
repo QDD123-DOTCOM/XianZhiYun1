@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.GoodsCommunityCategoryMapMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.xianzhiyun.entity.GoodsCommunityCategoryMap">
+        <id column="id" property="id" />
+        <result column="goods_category_name" property="goodsCategoryName" />
+        <result column="community_category_key" property="communityCategoryKey" />
+        <result column="default_community_id" property="defaultCommunityId" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, goods_category_name, community_category_key, default_community_id, create_time, update_time
+    </sql>
+
+    <select id="selectByGoodsCategoryName" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM goods_community_category_map
+        WHERE goods_category_name = #{goodsCategoryName}
+        ORDER BY default_community_id DESC, id ASC <!-- 优先返回有指定默认社区的，然后按ID排序 -->
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM goods_community_category_map
+        WHERE id = #{id}
+    </select>
+
+</mapper>

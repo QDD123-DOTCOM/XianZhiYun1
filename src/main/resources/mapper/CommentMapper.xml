@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.CommentMapper">
+
+    <resultMap id="BaseComment" type="com.example.xianzhiyun.entity.Comment">
+        <id column="id" property="id"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="user_id" property="userId"/>
+        <result column="content" property="content"/>
+        <result column="rating" property="rating"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectByGoodsId" resultMap="BaseComment" parameterType="map">
+        SELECT id, goods_id, user_id, content, rating, create_time
+        FROM comment
+        WHERE goods_id = #{goodsId}
+        ORDER BY create_time DESC
+            LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByGoodsId" resultType="int" parameterType="long">
+        SELECT COUNT(1) FROM comment WHERE goods_id = #{goodsId}
+    </select>
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.Comment" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comment (goods_id, user_id, content, rating, create_time)
+        VALUES (#{goodsId}, #{userId}, #{content}, #{rating}, NOW())
+    </insert>
+
+</mapper>

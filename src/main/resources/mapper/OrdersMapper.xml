@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"> <mapper namespace="com.example.xianzhiyun.mapper.OrdersMapper">
+    <!-- 新增订单 -->
+    <insert id="insertOrder" parameterType="com.example.xianzhiyun.entity.Orders" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO orders (order_no, buyer_id, total_amount, status, address_id, note, create_time)
+        VALUES (#{orderNo}, #{buyerId}, #{totalAmount}, #{status}, #{addressId}, #{note}, NOW())
+    </insert>
+
+    <!-- 根据订单 id 查询 -->
+    <select id="selectById" resultType="com.example.xianzhiyun.entity.Orders" parameterType="long">
+        SELECT id,
+               order_no AS orderNo,
+               buyer_id AS buyerId,
+               total_amount AS totalAmount,
+               status,
+               address_id AS addressId,
+               note,
+               create_time AS createTime,
+               update_time AS updateTime
+        FROM orders
+        WHERE id = #{id}
+    </select>
+
+    <!-- 买家侧分页查询（按 buyer_id 与可选 status） -->
+    <select id="listByBuyer" resultType="com.example.xianzhiyun.entity.Orders" parameterType="map">
+        SELECT id,
+        order_no AS orderNo,
+        buyer_id AS buyerId,
+        total_amount AS totalAmount,
+        status,
+        address_id AS addressId,
+        note,
+        create_time AS createTime,
+        update_time AS updateTime
+        FROM orders
+        WHERE buyer_id = #{buyerId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByBuyer" resultType="int" parameterType="map">
+        SELECT COUNT(1)
+        FROM orders
+        WHERE buyer_id = #{buyerId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+    </select>
+
+    <!-- 买家统计（不同状态的订单数量） -->
+    <select id="statsByBuyer" resultType="map" parameterType="long">
+        SELECT
+            SUM(CASE WHEN status='WAIT_PAY' THEN 1 ELSE 0 END) AS awaitingPayment,
+            SUM(CASE WHEN status='PAID' THEN 1 ELSE 0 END) AS awaitingShip,
+            SUM(CASE WHEN status='FINISHED' THEN 1 ELSE 0 END) AS completed
+        FROM orders
+        WHERE buyer_id = #{buyerId}
+    </select>
+
+    <!-- 更新订单状态 -->
+    <update id="updateStatus" parameterType="com.example.xianzhiyun.entity.Orders">
+        UPDATE orders
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 卖家侧分页查询（通过 order_item 与 goods_item 联查，返回订单列表） -->
+    <select id="listBySeller" resultType="com.example.xianzhiyun.entity.Orders" parameterType="map">
+        SELECT DISTINCT
+        o.id,
+        o.order_no AS orderNo,
+        o.buyer_id AS buyerId,
+        o.total_amount AS totalAmount,
+        o.status,
+        o.address_id AS addressId,
+        o.note,
+        o.create_time AS createTime,
+        o.update_time AS updateTime
+        FROM orders o
+        JOIN order_item oi ON oi.order_id = o.id
+        LEFT JOIN goods_item gi ON gi.id = oi.goods_id
+        WHERE (oi.seller_id = #{sellerId} OR gi.seller_id = #{sellerId})
+        <if test="shipped != null">
+            AND oi.shipped = #{shipped}
+        </if>
+        <if test="status != null and status != ''">
+            AND o.status = #{status}
+        </if>
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countBySeller" resultType="int" parameterType="map">
+        SELECT COUNT(DISTINCT o.id)
+        FROM orders o
+        JOIN order_item oi ON oi.order_id = o.id
+        LEFT JOIN goods_item gi ON gi.id = oi.goods_id
+        WHERE (oi.seller_id = #{sellerId} OR gi.seller_id = #{sellerId})
+        <if test="shipped != null">
+            AND oi.shipped = #{shipped}
+        </if>
+        <if test="status != null and status != ''">
+            AND o.status = #{status}
+        </if>
+    </select>
+
+    <!-- 查询与某用户相关的订单（作为买家或卖家相关的订单），支持分页与可选 status -->
+    <select id="listRelatedOrders" resultType="com.example.xianzhiyun.entity.Orders" parameterType="map">
+        SELECT DISTINCT
+        o.id,
+        o.order_no AS orderNo,
+        o.buyer_id AS buyerId,
+        o.total_amount AS totalAmount,
+        o.status,
+        o.address_id AS addressId,
+        o.note,
+        o.create_time AS createTime,
+        o.update_time AS updateTime
+        FROM orders o
+        WHERE
+        <if test="status != null and status != ''">
+            o.status = #{status}
+        </if>
+        <if test="status == null or status == ''">
+            1=1
+        </if>
+        AND (
+        o.buyer_id = #{userId}
+        OR EXISTS (
+        SELECT 1
+        FROM order_item oi
+        LEFT JOIN goods_item gi ON gi.id = oi.goods_id
+        WHERE oi.order_id = o.id
+        AND (oi.seller_id = #{userId} OR gi.seller_id = #{userId})
+        )
+        )
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countRelatedOrders" resultType="int" parameterType="map">
+        SELECT COUNT(DISTINCT o.id)
+        FROM orders o
+        WHERE
+        <if test="status != null and status != ''">
+            o.status = #{status}
+        </if>
+        <if test="status == null or status == ''">
+            1=1
+        </if>
+        AND (
+        o.buyer_id = #{userId}
+        OR EXISTS (
+        SELECT 1
+        FROM order_item oi
+        LEFT JOIN goods_item gi ON gi.id = oi.goods_id
+        WHERE oi.order_id = o.id
+        AND (oi.seller_id = #{userId} OR gi.seller_id = #{userId})
+        )
+        )
+    </select>
+</mapper>

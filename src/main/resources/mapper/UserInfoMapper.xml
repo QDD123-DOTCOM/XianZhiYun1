@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.xianzhiyun.mapper.UserInfoMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.xianzhiyun.entity.UserInfo">
+        <id column="id" property="id"/>
+        <result column="openid" property="openid"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="role" property="role"/>
+        <result column="password" property="password"/>
+        <result column="credit_score" property="creditScore"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 查询所有用户（按创建时间降序） -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT id, openid, password, nickname, avatar_url, phone, email, role, credit_score, create_time, update_time
+        FROM user_info
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap" parameterType="long">
+        SELECT id, openid, password, nickname, avatar_url, phone, email, role, credit_score, create_time, update_time
+        FROM user_info
+        WHERE id = #{id}
+            LIMIT 1
+    </select>
+
+    <select id="findByOpenid" resultMap="BaseResultMap" parameterType="string">
+        SELECT id, openid, password, nickname, avatar_url, phone, email, role, credit_score, create_time, update_time
+        FROM user_info
+        WHERE openid = #{openid}
+            LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="com.example.xianzhiyun.entity.UserInfo">
+        INSERT INTO user_info (openid, nickname, avatar_url, phone, email, role, password, credit_score, create_time, update_time)
+        VALUES (#{openid}, #{nickname}, #{avatarUrl}, #{phone}, #{email}, #{role}, #{password}, #{creditScore}, #{createTime}, #{updateTime})
+    </insert>
+
+    <update id="updateSelective" parameterType="com.example.xianzhiyun.entity.UserInfo">
+        UPDATE user_info
+        <set>
+            <if test="openid != null"> openid = #{openid}, </if>
+            <if test="password != null"> password = #{password}, </if>
+            <if test="nickname != null"> nickname = #{nickname}, </if>
+            <if test="avatarUrl != null"> avatar_url = #{avatarUrl}, </if>
+            <if test="phone != null"> phone = #{phone}, </if>
+            <if test="email != null"> email = #{email}, </if>
+            <if test="role != null"> role = #{role}, </if>
+            <if test="creditScore != null"> credit_score = #{creditScore}, </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM user_info WHERE id = #{id}
+    </delete>
+
+    <!-- 按关键字搜索（openid 或 nickname） -->
+    <select id="selectByOpenidOrNickname" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT id, openid, password, nickname, avatar_url, phone, email, role, credit_score, create_time, update_time
+        FROM user_info
+        WHERE (openid LIKE #{kw} OR nickname LIKE #{kw})
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 查询信用分（返回非 null） -->
+    <select id="selectCreditScoreById" parameterType="long" resultType="int">
+        SELECT COALESCE(credit_score, 0) FROM user_info WHERE id = #{id}
+    </select>
+
+    <!-- 其他 SQL（例如更新信用分）保留 -->
+    <update id="updateCreditScoreByDelta" parameterType="map">
+        UPDATE user_info
+        SET credit_score = LEAST(10, GREATEST(0, COALESCE(credit_score,0) + #{delta}))
+        WHERE id = #{userId}
+    </update>
+
+</mapper>

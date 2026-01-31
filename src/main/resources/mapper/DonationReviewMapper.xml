@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.DonationReviewMapper">
+
+    <resultMap id="DonationReviewRM" type="com.example.xianzhiyun.entity.DonationReview">
+        <id column="id" property="id"/>
+        <result column="item_id" property="itemId"/>
+        <result column="reviewer_id" property="reviewerId"/>
+        <result column="review_status" property="reviewStatus"/>
+        <result column="review_comment" property="reviewComment"/>
+        <result column="review_time" property="reviewTime"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="long" resultMap="DonationReviewRM">
+        SELECT id, item_id, reviewer_id, review_status, review_comment, review_time
+        FROM donation_review
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByItemId" parameterType="long" resultMap="DonationReviewRM">
+        SELECT id, item_id, reviewer_id, review_status, review_comment, review_time
+        FROM donation_review
+        WHERE item_id = #{itemId}
+        ORDER BY review_time DESC
+    </select>
+
+    <select id="selectList" parameterType="map" resultMap="DonationReviewRM">
+        SELECT id, item_id, reviewer_id, review_status, review_comment, review_time
+        FROM donation_review
+        <where>
+            <if test="params.itemId != null"> AND item_id = #{params.itemId}</if>
+            <if test="params.reviewerId != null"> AND reviewer_id = #{params.reviewerId}</if>
+        </where>
+        ORDER BY review_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.DonationReview" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO donation_review (item_id, reviewer_id, review_status, review_comment, review_time)
+        VALUES (#{itemId}, #{reviewerId}, #{reviewStatus}, #{reviewComment}, NOW())
+    </insert>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM donation_review WHERE id = #{id}
+    </delete>
+
+</mapper>

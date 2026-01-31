@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.ChatMapper">
+
+    <!-- 插入 conversation（包含 goods_id） -->
+    <insert id="insertConversation" parameterType="com.example.xianzhiyun.entity.Conversation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO conversation (type, name, goods_id, create_time)
+        VALUES (#{type}, #{name}, #{goodsId}, NOW())
+    </insert>
+
+    <!-- select by id -->
+    <select id="selectConversationById" resultType="com.example.xianzhiyun.entity.Conversation" parameterType="long">
+        SELECT id, type, name, goods_id, create_time FROM conversation WHERE id = #{id}
+    </select>
+
+    <!-- find conversation by goods_id and two users (product-priority) -->
+    <select id="selectConversationByGoodsAndUsers" resultType="long" parameterType="map">
+        SELECT c.id
+        FROM conversation c
+                 JOIN conversation_member m1 ON c.id = m1.conversation_id AND m1.user_id = #{userA}
+                 JOIN conversation_member m2 ON c.id = m2.conversation_id AND m2.user_id = #{userB}
+        WHERE c.goods_id = #{goodsId}
+            LIMIT 1
+    </select>
+
+    <!-- insert conversation_member -->
+    <insert id="insertConversationMember" parameterType="map">
+        INSERT INTO conversation_member (conversation_id, user_id, role, join_time)
+        VALUES (#{convId}, #{userId}, #{role}, NOW())
+    </insert>
+
+    <!-- insert message -->
+    <insert id="insertMessage" parameterType="com.example.xianzhiyun.entity.ChatMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_message (conversation_id, sender_id, content, type, status, create_time)
+        VALUES (#{conversationId}, #{senderId}, #{content}, #{type}, #{status}, NOW())
+    </insert>
+
+    <!-- select messages by conv (注意列别名与 ChatMessage 实体匹配) -->
+    <select id="selectMessagesByConv" resultType="com.example.xianzhiyun.entity.ChatMessage" parameterType="map">
+        SELECT
+            id,
+            conversation_id AS conversationId,
+            sender_id AS senderId,
+            content,
+            type,
+            status,
+            create_time AS createTime
+        FROM chat_message
+        WHERE conversation_id = #{convId}
+        ORDER BY create_time ASC
+            LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- select new messages since timestamp (列别名以映射实体) -->
+    <select id="selectNewMessages" resultType="com.example.xianzhiyun.entity.ChatMessage" parameterType="map">
+        SELECT
+            id,
+            conversation_id AS conversationId,
+            sender_id AS senderId,
+            content,
+            type,
+            status,
+            create_time AS createTime
+        FROM chat_message
+        WHERE conversation_id = #{convId}
+          AND create_time &gt; #{since}
+        ORDER BY create_time ASC
+    </select>
+
+    <!-- count unread for user (status != 'read' and sender != user) -->
+    <select id="countUnread" resultType="int" parameterType="map">
+        SELECT COUNT(1)
+        FROM chat_message m
+        WHERE m.conversation_id = #{convId}
+          AND m.status &lt;&gt; 'read'
+          AND m.sender_id &lt;&gt; #{userId}
+    </select>
+
+    <!-- 获取 goods 的 seller_id -->
+    <select id="selectGoodsSellerId" resultType="long" parameterType="long">
+        SELECT seller_id FROM goods_item WHERE id = #{id}
+    </select>
+
+    <!-- 查询会话中某个用户的 role -->
+    <select id="selectMemberRole" resultType="string" parameterType="map">
+        SELECT role FROM conversation_member WHERE conversation_id = #{convId} AND user_id = #{userId} LIMIT 1
+    </select>
+    <!-- 批量按 goodsId 删除当前用户的购物车项 -->
+    <delete id="deleteByUserAndGoodsIds" parameterType="map">
+        DELETE FROM cart_item
+        WHERE user_id = #{userId}
+        AND goods_id IN
+        <foreach item="gid" collection="goodsIds" open="(" separator="," close=")">
+            #{gid}
+        </foreach>
+    </delete>
+
+    <!-- 查询会话中除指定 userId 外的另一个成员（用于一对一会话） -->
+    <select id="selectConversationPartner" resultType="map" parameterType="map">
+        SELECT cm.user_id AS userId, cm.role AS role, ui.nickname AS name, ui.avatar_url AS avatar
+        FROM conversation_member cm
+                 LEFT JOIN user_info ui ON ui.id = cm.user_id
+        WHERE cm.conversation_id = #{convId}
+          AND cm.user_id &lt;&gt; #{userId}
+            LIMIT 1
+    </select>
+
+    <!-- select conversations for user (list) - enhanced with partner info, lastMessage, lastTime, unread, lastSenderId, goodsSellerId -->
+    <select id="selectConversationsByUser" resultType="map" parameterType="map">
+        SELECT
+            c.id AS id,
+            c.type AS type,
+            COALESCE(c.name, CONCAT('会话 ', c.id)) AS name,
+            c.goods_id AS goodsId,
+            COALESCE(u_partner.id, 0) AS partnerId,
+            COALESCE(u_partner.nickname, '') AS partnerName,
+            COALESCE(u_partner.avatar_url, '') AS partnerAvatar,
+            COALESCE(u_partner.avatar_url, '') AS avatar,
+            COALESCE(latest.content, '') AS lastMessage,
+            COALESCE(latest.create_time, c.create_time) AS lastTime,
+            COALESCE(latest.lastSenderId, NULL) AS lastSenderId,
+            g.seller_id AS goodsSellerId,
+            COALESCE(cm_partner.role, '') AS partnerMemberRole,
+            COALESCE((
+                         SELECT COUNT(1)
+                         FROM chat_message m
+                         WHERE m.conversation_id = c.id
+                           AND m.status &lt;&gt; 'read'
+                           AND m.sender_id &lt;&gt; #{userId}
+                     ), 0) AS unread
+        FROM conversation c
+                 JOIN conversation_member cm_self ON cm_self.conversation_id = c.id AND cm_self.user_id = #{userId}
+                 LEFT JOIN conversation_member cm_partner ON cm_partner.conversation_id = c.id AND cm_partner.user_id &lt;&gt; #{userId}
+                 LEFT JOIN user_info u_partner ON u_partner.id = cm_partner.user_id
+                 LEFT JOIN goods_item g ON g.id = c.goods_id
+                 LEFT JOIN (
+            SELECT m1.conversation_id, m1.content, m1.create_time, m1.sender_id AS lastSenderId
+            FROM chat_message m1
+                     INNER JOIN (
+                SELECT conversation_id, MAX(create_time) AS maxt
+                FROM chat_message
+                GROUP BY conversation_id
+            ) mx ON m1.conversation_id = mx.conversation_id AND m1.create_time = mx.maxt
+        ) latest ON latest.conversation_id = c.id
+        ORDER BY lastTime DESC, c.create_time DESC
+    </select>
+
+</mapper>

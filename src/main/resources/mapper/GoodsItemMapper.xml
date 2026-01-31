@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.xianzhiyun.mapper.GoodsItemMapper">
+
+    <!-- 原有普通 resultMap -->
+    <resultMap id="GoodsItemResultMap" type="com.example.xianzhiyun.entity.GoodsItem">
+        <id column="id" property="id"/>
+        <result column="seller_id"   property="sellerId"/>
+        <result column="title"       property="title"/>
+        <result column="description" property="description"/>
+        <result column="price"       property="price"/>
+        <result column="category"    property="category"/>
+        <result column="cover_urls"   property="coverUrls"/>
+        <result column="status"      property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 新增：管理员用 resultMap，包含 sellerNickname -->
+    <resultMap id="GoodsItemAdminResultMap" type="com.example.xianzhiyun.entity.GoodsItem">
+        <id column="id" property="id"/>
+        <result column="seller_id" property="sellerId"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="category" property="category"/>
+        <result column="cover_urls" property="coverUrls"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="sellerNickname" property="sellerNickname"/>
+    </resultMap>
+
+    <!-- 管理端分页/筛选查询（JOIN user_info 以获取 seller nickname） -->
+    <select id="selectAdminList" parameterType="map" resultMap="GoodsItemAdminResultMap">
+        SELECT
+        gi.id,
+        gi.seller_id,
+        gi.title,
+        gi.description,
+        gi.price,
+        gi.category,
+        gi.cover_urls,
+        gi.status,
+        gi.create_time,
+        gi.update_time,
+        ui.nickname AS sellerNickname
+        FROM goods_item gi
+        LEFT JOIN user_info ui ON gi.seller_id = ui.id
+        <where>
+            <if test="params.status != null and params.status != ''">
+                AND gi.status = #{params.status}
+            </if>
+            <if test="params.keyword != null and params.keyword != ''">
+                AND (gi.title LIKE CONCAT('%', #{params.keyword}, '%') OR gi.description LIKE CONCAT('%', #{params.keyword}, '%'))
+            </if>
+            <if test="params.sellerId != null">
+                AND gi.seller_id = #{params.sellerId}
+            </if>
+            <if test="params.sellerKeyword != null and params.sellerKeyword != ''">
+                AND ui.nickname LIKE CONCAT('%', #{params.sellerKeyword}, '%')
+            </if>
+            <if test="params.category != null and params.category != ''">
+                AND gi.category = #{params.category}
+            </if>
+        </where>
+        ORDER BY gi.create_time DESC
+        <if test="params.offset != null and params.limit != null">
+            LIMIT #{params.offset}, #{params.limit}
+        </if>
+    </select>
+
+    <select id="selectAdminCount" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM goods_item gi
+        LEFT JOIN user_info ui ON gi.seller_id = ui.id
+        <where>
+            <if test="params.status != null and params.status != ''">
+                AND gi.status = #{params.status}
+            </if>
+            <if test="params.keyword != null and params.keyword != ''">
+                AND (gi.title LIKE CONCAT('%', #{params.keyword}, '%') OR gi.description LIKE CONCAT('%', #{params.keyword}, '%'))
+            </if>
+            <if test="params.sellerId != null">
+                AND gi.seller_id = #{params.sellerId}
+            </if>
+            <if test="params.sellerKeyword != null and params.sellerKeyword != ''">
+                AND ui.nickname LIKE CONCAT('%', #{params.sellerKeyword}, '%')
+            </if>
+            <if test="params.category != null and params.category != ''">
+                AND gi.category = #{params.category}
+            </if>
+        </where>
+    </select>
+
+    <!-- 现有查询保留 -->
+    <select id="selectRecommend"
+            resultMap="GoodsItemResultMap"
+            parameterType="int">
+        SELECT
+            id,
+            seller_id,
+            title,
+            description,
+            price,
+            category,
+            cover_urls,
+            status,
+            create_time,
+            update_time
+        FROM goods_item
+        WHERE status = 'ON_SALE'
+        ORDER BY create_time DESC
+            LIMIT #{limit}
+    </select>
+
+    <select id="selectById"
+            resultMap="GoodsItemResultMap"
+            parameterType="long">
+        SELECT
+            id,
+            seller_id,
+            title,
+            description,
+            price,
+            category,
+            cover_urls,
+            status,
+            create_time,
+            update_time
+        FROM goods_item
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectBySellerId" resultMap="GoodsItemResultMap" parameterType="map">
+        SELECT
+            id,
+            seller_id,
+            title,
+            description,
+            price,
+            category,
+            cover_urls,
+            status,
+            create_time,
+            update_time
+        FROM goods_item
+        WHERE seller_id = #{sellerId}
+        ORDER BY create_time DESC
+            LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countBySellerId" parameterType="long" resultType="int">
+        SELECT COUNT(1) FROM goods_item WHERE seller_id = #{sellerId}
+    </select>
+
+    <insert id="insert"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            parameterType="com.example.xianzhiyun.entity.GoodsItem">
+        INSERT INTO goods_item
+            (seller_id, title, description, price, category, cover_urls, status)
+        VALUES
+            (#{sellerId}, #{title}, #{description}, #{price}, #{category},
+             #{coverUrls}, #{status})
+    </insert>
+
+    <update id="update"
+            parameterType="com.example.xianzhiyun.entity.GoodsItem">
+        UPDATE goods_item
+        SET
+            title       = #{title},
+            description = #{description},
+            price       = #{price},
+            category    = #{category},
+            cover_urls  = #{coverUrls},
+            status      = #{status},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <update id="logicalDelete" parameterType="long">
+        UPDATE goods_item SET status = 'REMOVED' WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM goods_item WHERE id = #{id}
+    </delete>
+
+    <!-- 根据 ids 批量查询（若需要） -->
+    <select id="selectByIds" parameterType="list" resultMap="GoodsItemResultMap">
+        SELECT id, seller_id, title, description, price, category, cover_urls, status, create_time, update_time
+        FROM goods_item
+        WHERE id IN
+        <foreach item="it" index="i" collection="list" open="(" separator="," close=")">
+            #{it}
+        </foreach>
+    </select>
+
+
+</mapper>

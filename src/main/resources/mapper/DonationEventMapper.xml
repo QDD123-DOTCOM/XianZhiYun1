@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.xianzhiyun.mapper.DonationEventMapper">
+
+    <resultMap id="DonationEventResultMap" type="com.example.xianzhiyun.entity.DonationEvent">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="create_time" property="createTime"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <!-- 管理端分页查询 -->
+    <select id="selectAdminList" resultMap="DonationEventResultMap" parameterType="map">
+        SELECT id, title, description, start_time AS startTime, end_time AS endTime,
+        image_url AS image_url, create_time AS createTime, status
+        FROM donation_event
+        <where>
+            <if test="params.keyword != null and params.keyword != ''">
+                AND (title LIKE CONCAT('%', #{params.keyword}, '%')
+                OR description LIKE CONCAT('%', #{params.keyword}, '%'))
+            </if>
+            <if test="params.status != null and params.status != ''">
+                AND status = #{params.status}
+            </if>
+        </where>
+        ORDER BY createTime DESC
+        <if test="params.limit != null">
+            LIMIT #{params.offset}, #{params.limit}
+        </if>
+    </select>
+
+    <select id="countAdmin" resultType="int" parameterType="map">
+        SELECT COUNT(1)
+        FROM donation_event
+        <where>
+            <if test="params.keyword != null and params.keyword != ''">
+                AND (title LIKE CONCAT('%', #{params.keyword}, '%')
+                OR description LIKE CONCAT('%', #{params.keyword}, '%'))
+            </if>
+            <if test="params.status != null and params.status != ''">
+                AND status = #{params.status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectById" resultMap="DonationEventResultMap" parameterType="long">
+        SELECT id, title, description, start_time AS startTime, end_time AS endTime,
+               image_url AS image_url, create_time AS createTime, status
+        FROM donation_event
+        WHERE id = #{id}
+    </select>
+
+    <update id="update" parameterType="com.example.xianzhiyun.entity.DonationEvent">
+        UPDATE donation_event
+        SET title = #{title},
+            description = #{description},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            image_url = #{imageUrl},
+            create_time = #{createTime},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectPendingList" resultMap="DonationEventResultMap" parameterType="map">
+        SELECT id, title, description, start_time AS startTime, end_time AS endTime,
+        image_url AS image_url, create_time AS createTime, status
+        FROM donation_event
+        WHERE status = 'PENDING'
+        ORDER BY createTime DESC
+        <if test="params.limit != null">
+            LIMIT #{params.offset}, #{params.limit}
+        </if>
+    </select>
+
+    <select id="countPending" resultType="int" parameterType="map">
+        SELECT COUNT(1) FROM donation_event WHERE status = 'PENDING'
+    </select>
+
+    <!-- 统计某活动的交换/参与数量：按不同 donor_id 去重，返回键 exchangeCount -->
+    <select id="countExchangeByEventId" parameterType="long" resultType="map">
+        SELECT COUNT(DISTINCT donor_id) AS exchangeCount
+        FROM donation_item
+        WHERE event_id = #{eventId}
+    </select>
+
+    <!-- selectOngoing：使用 CDATA 包裹，保留 <= 和 >= 原始写法 -->
+    <select id="selectOngoing" resultMap="DonationEventResultMap">
+    <![CDATA[
+        SELECT id, title, description, start_time AS startTime, end_time AS endTime,
+               image_url AS image_url, create_time AS createTime, status
+        FROM donation_event
+        WHERE status = 'PUBLISHED'
+          AND start_time <= NOW()
+          AND end_time >= NOW()
+        ORDER BY start_time DESC
+            LIMIT 5
+        ]]>
+  </select>
+
+</mapper>

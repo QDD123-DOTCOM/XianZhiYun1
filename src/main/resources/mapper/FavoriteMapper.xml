@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.FavoriteMapper">
+
+    <resultMap id="FavWithGoodsMap" type="map">
+        <result column="fav_id" property="favId"/>
+        <result column="favorited_at" property="favoritedAt"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="title" property="title"/>
+        <result column="price" property="price"/>
+        <result column="cover" property="cover"/>
+        <result column="status" property="status"/>
+        <result column="seller_id" property="sellerId"/>
+    </resultMap>
+
+    <select id="countByUserId" resultType="int" parameterType="long">
+        SELECT COUNT(1) FROM favorite WHERE user_id = #{userId}
+    </select>
+
+    <select id="countByUserAndGoods" resultType="int" parameterType="map">
+        SELECT COUNT(1) FROM favorite WHERE user_id = #{userId} AND goods_id = #{goodsId}
+    </select>
+
+    <insert id="insert" parameterType="map">
+        INSERT INTO favorite (user_id, goods_id, create_time) VALUES (#{userId}, #{goodsId}, NOW())
+    </insert>
+
+    <delete id="delete" parameterType="map">
+        DELETE FROM favorite WHERE user_id = #{userId} AND goods_id = #{goodsId}
+    </delete>
+
+    <!-- 分页带商品信息 -->
+    <select id="selectPageByUserId" resultMap="FavWithGoodsMap" parameterType="map">
+        SELECT
+            f.id AS fav_id,
+            f.create_time AS favorited_at,
+            g.id AS goods_id,
+            g.title,
+            g.price,
+            CASE WHEN INSTR(g.cover_urls, ',') = 0 THEN g.cover_urls ELSE SUBSTRING_INDEX(g.cover_urls, ',', 1) END AS cover,
+            g.status,
+            g.seller_id
+        FROM favorite f
+                 LEFT JOIN goods_item g ON f.goods_id = g.id
+        WHERE f.user_id = #{userId}
+        ORDER BY f.create_time DESC
+            LIMIT #{offset}, #{limit}
+    </select>
+
+</mapper>

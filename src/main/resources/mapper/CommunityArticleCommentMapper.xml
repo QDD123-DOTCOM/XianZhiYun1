@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.CommunityArticleCommentMapper">
+
+    <!-- 插入评论 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO community_article_comment (article_id, user_id, content, created_at)
+        VALUES (#{articleId}, #{userId}, #{content}, #{createdAt})
+    </insert>
+
+    <!-- 查询评论列表（联表查询获取用户头像和昵称） -->
+    <select id="selectByArticleId" resultType="com.example.xianzhiyun.entity.CommunityArticleComment">
+        SELECT
+            c.id,
+            c.article_id AS articleId,
+            c.user_id AS userId,
+            c.content,
+            c.created_at AS createdAt,
+            u.nickname,
+            u.avatar_url AS avatarUrl
+        FROM community_article_comment c
+                 LEFT JOIN user_info u ON c.user_id = u.id
+        WHERE c.article_id = #{articleId}
+        ORDER BY c.created_at ASC
+    </select>
+
+</mapper>

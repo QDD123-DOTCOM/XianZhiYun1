@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.OrderItemMapper">
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.OrderItem" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO order_item (order_id, goods_id, seller_id, price, quantity, amount)
+        VALUES (#{orderId}, #{goodsId}, #{sellerId}, #{price}, #{quantity}, #{amount})
+    </insert>
+
+    <select id="selectByOrderId" parameterType="long" resultType="com.example.xianzhiyun.entity.OrderItem">
+        SELECT
+            oi.id,
+            oi.order_id AS orderId,
+            oi.goods_id AS goodsId,
+            oi.seller_id AS sellerId,
+            oi.price,
+            oi.quantity,
+            oi.amount,
+            oi.received,
+            oi.receive_time AS receiveTime,
+            oi.shipped,
+            oi.ship_time AS shipTime,
+            oi.express_company AS expressCompany,
+            oi.tracking_number AS trackingNumber,
+            oi.ship_proof AS shipProof,
+            gi.title AS title,
+            gi.cover_urls AS coverUrls,
+            gi.description AS description
+        FROM order_item oi
+                 LEFT JOIN goods_item gi ON oi.goods_id = gi.id
+        WHERE oi.order_id = #{orderId}
+    </select>
+
+    <!-- 按订单且可选按 shipped 过滤 -->
+    <select id="selectByOrderIdAndShipped" parameterType="map" resultType="com.example.xianzhiyun.entity.OrderItem">
+        SELECT
+        oi.id,
+        oi.order_id AS orderId,
+        oi.goods_id AS goodsId,
+        oi.seller_id AS sellerId,
+        oi.price,
+        oi.quantity,
+        oi.amount,
+        oi.received,
+        oi.receive_time AS receiveTime,
+        oi.shipped,
+        oi.ship_time AS shipTime,
+        oi.express_company AS expressCompany,
+        oi.tracking_number AS trackingNumber,
+        oi.ship_proof AS shipProof,
+        gi.title AS title,
+        gi.cover_urls AS coverUrls,
+        gi.description AS description
+        FROM order_item oi
+        LEFT JOIN goods_item gi ON oi.goods_id = gi.id
+        WHERE oi.order_id = #{orderId}
+        <if test="shipped != null">
+            AND oi.shipped = #{shipped}
+        </if>
+    </select>
+
+    <select id="selectById" parameterType="long" resultType="com.example.xianzhiyun.entity.OrderItem">
+        SELECT
+            id,
+            order_id AS orderId,
+            goods_id AS goodsId,
+            seller_id AS sellerId,
+            price,
+            quantity,
+            amount,
+            received,
+            receive_time AS receiveTime,
+            shipped,
+            ship_time AS shipTime,
+            express_company AS expressCompany,
+            tracking_number AS trackingNumber,
+            ship_proof AS shipProof
+        FROM order_item
+        WHERE id = #{id}
+            LIMIT 1
+    </select>
+
+    <update id="markItemReceived" parameterType="map">
+        UPDATE order_item
+        SET received = 1, receive_time = NOW()
+        WHERE id = #{itemId}
+    </update>
+
+    <update id="markItemShipped" parameterType="map">
+        UPDATE order_item
+        SET shipped = 1,
+            ship_time = NOW(),
+            express_company = #{expressCompany},
+            tracking_number = #{trackingNumber},
+            ship_proof = #{shipProof}
+        WHERE id = #{itemId}
+          AND (shipped = 0 OR shipped IS NULL)
+    </update>
+    <!-- 统计某订单下 received = #{received} 的数量（用于判断是否全部已收货） -->
+    <select id="countByOrderIdAndReceived" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM order_item
+        WHERE order_id = #{orderId}
+          AND (received = #{received})
+    </select>
+
+    <!-- 将某订单下所有未收到的 item 标记为已收货 -->
+    <update id="markItemsReceivedByOrderId" parameterType="map">
+        UPDATE order_item
+        SET received = 1, receive_time = NOW()
+        WHERE order_id = #{orderId}
+          AND (received = 0 OR received IS NULL)
+    </update>
+    <!-- 查询某订单中与指定用户相关的 items（卖家为当前用户） -->
+    <select id="selectByOrderIdAndSeller" parameterType="map" resultType="com.example.xianzhiyun.entity.OrderItem">
+        SELECT
+            oi.id,
+            oi.order_id AS orderId,
+            oi.goods_id AS goodsId,
+            oi.seller_id AS sellerId,
+            oi.price,
+            oi.quantity,
+            oi.amount,
+            oi.received,
+            oi.receive_time AS receiveTime,
+            oi.shipped,
+            oi.ship_time AS shipTime,
+            oi.express_company AS expressCompany,
+            oi.tracking_number AS trackingNumber,
+            oi.ship_proof AS shipProof,
+            gi.title AS title,
+            gi.cover_urls AS coverUrls,
+            gi.description AS description
+        FROM order_item oi
+                 LEFT JOIN goods_item gi ON gi.id = oi.goods_id
+        WHERE oi.order_id = #{orderId}
+          AND (oi.seller_id = #{userId} OR gi.seller_id = #{userId})
+    </select>
+
+</mapper>

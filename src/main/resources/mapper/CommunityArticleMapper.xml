@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.CommunityArticleMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.xianzhiyun.entity.CommunityArticle">
+        <id column="id" property="id"/>
+        <result column="community_id" property="communityId"/>
+        <result column="author_id" property="authorId"/>
+        <result column="title" property="title"/>
+        <result column="cover_url" property="coverUrl"/>
+        <result column="images" property="images"/>
+        <result column="summary" property="summary"/>
+        <result column="content" property="content"/>
+        <result column="status" property="status"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 插入文章，注意增加了 images, view_count 等字段 -->
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.CommunityArticle" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO community_article
+        (community_id, author_id, title, cover_url, images, summary, content, status, view_count, like_count, comment_count, create_time)
+        VALUES
+            (#{communityId}, #{authorId}, #{title}, #{coverUrl}, #{images}, #{summary}, #{content}, #{status}, 0, 0, 0, #{createTime})
+    </insert>
+
+    <!-- 查询单条详情 -->
+    <select id="selectArticleDTOById" resultType="com.example.xianzhiyun.dto.ArticleDTO">
+        SELECT
+            a.id,
+            a.community_id AS communityId,
+            a.title,
+            a.content,
+            a.summary,
+            a.cover_url AS coverUrl,
+            a.images,
+            a.view_count AS viewCount,
+            a.like_count AS likeCount,
+            a.comment_count AS commentCount,
+            a.create_time AS createTime,
+            a.author_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar_url AS authorAvatar
+        FROM community_article a
+                 LEFT JOIN user_info u ON a.author_id = u.id
+        WHERE a.id = #{id}
+    </select>
+
+    <!-- 更新统计数据 -->
+    <update id="incrementViewCount">
+        UPDATE community_article SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+    <update id="incrementLikeCount">
+        UPDATE community_article SET like_count = like_count + 1 WHERE id = #{id}
+    </update>
+    <update id="decrementLikeCount">
+        UPDATE community_article SET like_count = GREATEST(like_count - 1, 0) WHERE id = #{id}
+    </update>
+    <update id="incrementCommentCount">
+        UPDATE community_article SET comment_count = comment_count + 1 WHERE id = #{id}
+    </update>
+
+    <!-- 列表查询 (保持你原有的逻辑，稍作字段补充) -->
+    <select id="selectArticleDTOList" resultType="com.example.xianzhiyun.dto.ArticleDTO">
+        SELECT
+        a.id,
+        a.community_id AS communityId,
+        a.title,
+        a.content,  <!-- 列表页可能只需要 summary，视情况而定 -->
+        a.cover_url AS coverUrl,
+        a.images,
+        a.view_count AS viewCount,
+        a.like_count AS likeCount,
+        a.comment_count AS commentCount,
+        a.create_time AS createTime,
+        a.author_id AS authorId,
+        u.nickname AS authorName,
+        u.avatar_url AS authorAvatar
+        FROM community_article a
+        LEFT JOIN user_info u ON a.author_id = u.id
+        WHERE a.community_id = #{communityId}
+        AND a.status = 'PUBLISHED'
+        <choose>
+            <when test="type == 'hot'">
+                ORDER BY a.view_count DESC, a.create_time DESC
+            </when>
+            <otherwise>
+                ORDER BY a.create_time DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 其他 countByCommunityId 等方法保持不变 -->
+    <select id="countByCommunityId" resultType="int">
+        SELECT COUNT(*) FROM community_article WHERE community_id = #{communityId}
+    </select>
+    <update id="increaseCommentCount">
+        UPDATE community_article
+        SET comment_count = comment_count + 1
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.xianzhiyun.mapper.DonationItemMapper">
+
+    <resultMap id="DonationItemResultMap" type="com.example.xianzhiyun.entity.DonationItem">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="category" property="category"/>
+        <result column="tags" property="tags"/>
+        <result column="event_id" property="eventId"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="item_condition" property="itemCondition"/>
+        <result column="status" property="status"/>
+        <result column="donor_id" property="donorId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="long" resultMap="DonationItemResultMap">
+        SELECT id, title, description, category, tags, image_url, item_condition, status, donor_id, event_id, created_at, updated_at
+        FROM donation_item
+        WHERE id = #{id}
+    </select>
+
+    <update id="updateStatus" parameterType="map">
+        UPDATE donation_item SET status = #{status}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="selectList" parameterType="map" resultMap="DonationItemResultMap">
+        SELECT id, title, description, category, tags, image_url, item_condition, status, donor_id, created_at, updated_at
+        FROM donation_item
+        <where>
+            <if test="params.eventId != null">
+                AND event_id = #{params.eventId}
+            </if>
+            <if test="params.status != null and params.status != ''">
+                AND status = #{params.status}
+            </if>
+            <if test="params.keyword != null and params.keyword != ''">
+                AND (title LIKE CONCAT('%', #{params.keyword}, '%') OR description LIKE CONCAT('%', #{params.keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        <if test="params.offset != null and params.limit != null">
+            LIMIT #{params.offset}, #{params.limit}
+        </if>
+    </select>
+
+    <select id="selectCount" parameterType="map" resultType="int">
+        SELECT COUNT(1)
+        FROM donation_item
+        <where>
+            <if test="params.eventId != null">
+                AND event_id = #{params.eventId}
+            </if>
+            <if test="params.status != null and params.status != ''">
+                AND status = #{params.status}
+            </if>
+            <if test="params.keyword != null and params.keyword != ''">
+                AND (title LIKE CONCAT('%', #{params.keyword}, '%') OR description LIKE CONCAT('%', #{params.keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <insert id="insert" parameterType="com.example.xianzhiyun.entity.DonationItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO donation_item (title, description, category, tags, image_url, item_condition, status, donor_id, event_id, created_at, updated_at)
+        VALUES (#{title}, #{description}, #{category}, #{tags}, #{imageUrl}, #{itemCondition}, #{status}, #{donorId}, #{eventId}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.example.xianzhiyun.entity.DonationItem">
+        UPDATE donation_item
+        SET title = #{title},
+            description = #{description},
+            category = #{category},
+            tags = #{tags},
+            image_url = #{imageUrl},
+            item_condition = #{itemCondition},
+            status = #{status},
+            event_id = #{eventId},
+            donor_id = #{donorId},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM donation_item WHERE id = #{id}
+    </delete>
+
+    <!-- 新增：按用户去重统计参与活动数 -->
+    <select id="countDistinctEventsByUserId" resultType="int" parameterType="long">
+        SELECT COUNT(DISTINCT event_id) FROM donation_item WHERE donor_id = #{userId}
+    </select>
+
+    <!-- 统计某活动的物品数量 -->
+    <select id="countByEventId" resultType="int" parameterType="long">
+        SELECT COUNT(1) FROM donation_item WHERE event_id = #{eventId}
+    </select>
+
+    <select id="selectByIds" parameterType="list" resultMap="DonationItemResultMap">
+        SELECT id, title, description, category, tags, image_url, item_condition, status, donor_id, created_at, updated_at
+        FROM donation_item
+        WHERE id IN
+        <foreach item="it" index="i" collection="list" open="(" separator="," close=")">
+            #{it}
+        </foreach>
+    </select>
+
+</mapper>
