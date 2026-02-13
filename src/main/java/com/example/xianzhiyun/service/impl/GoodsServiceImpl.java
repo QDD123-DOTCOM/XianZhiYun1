@@ -77,7 +77,14 @@ public class GoodsServiceImpl implements GoodsService {
 
     @Override
     public GoodsItem getById(Long id) {
-        return goodsMapper.selectById(id);
+        GoodsItem item = goodsMapper.selectById(id);
+        if (item != null) {
+            // 【核心修改】每次查询详情，浏览量 +1
+            goodsMapper.incrementViewCount(id);
+            // 更新当前对象的数值，保证本次返回给前端的数据是最新的
+            item.setViewCount((item.getViewCount() == null ? 0 : item.getViewCount()) + 1);
+        }
+        return item;
     }
 
     @Override
@@ -311,4 +318,6 @@ public class GoodsServiceImpl implements GoodsService {
             throw e;
         }
     }
+    // GoodsServiceImpl.java
+
 }

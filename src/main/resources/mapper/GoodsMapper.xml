@@ -8,6 +8,10 @@
     <!-- 基础商品结果映射（增加 item_type -> itemType） -->
     <resultMap id="GoodsResultMap" type="com.example.xianzhiyun.entity.GoodsItem">
         <id column="id" property="id" />
+        <result column="view_count" property="viewCount"/>
+        <result column="fav_count" property="favCount"/>
+        <result column="chat_count" property="chatCount"/>
+        <result column="comment_count" property="commentCount"/>
         <result column="seller_id" property="sellerId" />
         <result column="title" property="title" />
         <result column="description" property="description" />
@@ -87,6 +91,7 @@
             </if>
         </where>
     </select>
+
 
     <!-- 以下为用户端或通用查询，包含 item_type 支持 -->
 
@@ -216,5 +221,21 @@
         </foreach>
         AND is_deleted = 0
     </select>
+    <update id="incrementViewCount">
+        UPDATE goods_item SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateFavCount">
+        UPDATE goods_item SET fav_count = fav_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <update id="updateCommentCount">
+        UPDATE goods_item SET comment_count = comment_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <update id="incrementChatCount">
+        UPDATE goods_item SET chat_count = chat_count + 1 WHERE id = #{id}
+    </update>
+
 
 </mapper>

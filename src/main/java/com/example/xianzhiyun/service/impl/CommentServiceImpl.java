@@ -73,4 +73,34 @@ public class CommentServiceImpl implements CommentService {
 
         logger.info("用户 {} 对商品 {} 发布了评论，评分为 {}", userId, goodsId, c.getRating());
     }
+    // CommentServiceImpl.java
+    @Service
+    public class CommentServiceImpl implements CommentService {
+        @Autowired
+        private CommentMapper commentMapper;
+        @Autowired
+        private GoodsMapper goodsMapper; // 注入 GoodsMapper
+
+        @Override
+        @Transactional
+        public void addComment(Long goodsId, Long userId, String content, Byte rating) {
+            // ... 原有参数校验逻辑 ...
+
+            Comment c = new Comment();
+            c.setGoodsId(goodsId);
+            c.setUserId(userId);
+            c.setContent(content.trim());
+            c.setCreateTime(LocalDateTime.now());
+            c.setRating(rating != null ? rating : (byte) 5);
+
+            int rows = commentMapper.insert(c);
+            if (rows > 0) {
+                // 【核心修改】同步增加商品表的评论数（即前端显示的咨询数）
+                goodsMapper.updateCommentCount(goodsId, 1);
+            } else {
+                throw new RuntimeException("评论发布失败");
+            }
+        }
+        // ... 其他方法保持不变 ...
+    }
 }

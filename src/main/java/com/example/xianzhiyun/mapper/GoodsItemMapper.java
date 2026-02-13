@@ -37,4 +37,5 @@ public interface GoodsItemMapper {
     int deleteById(@Param("id") Long id);
     List<GoodsItem> selectAdminList(@Param("params") Map<String, Object> params);
     int selectAdminCount(@Param("params") Map<String, Object> params);
+
 }

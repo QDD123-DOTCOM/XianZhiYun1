@@ -230,6 +230,38 @@ public class GoodsController {
         m.put("status", g.getStatus());
         m.put("createTime", g.getCreateTime());
         m.put("updateTime", g.getUpdateTime());
+        m.put("viewCount", g.getViewCount() != null ? g.getViewCount() : 0);
+        m.put("favCount", g.getFavCount() != null ? g.getFavCount() : 0);
+        m.put("chatCount", g.getChatCount() != null ? g.getChatCount() : 0);
+        m.put("commentCount", g.getCommentCount() != null ? g.getCommentCount() : 0);
+
+        String cvs = g.getCoverUrls();
+        List<String> list = new ArrayList<>();
+        if (cvs != null && !cvs.isBlank()) {
+            list = Arrays.stream(cvs.split(",")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+        }
+        m.put("coverUrls", list);
+        m.put("coverUrl", list.isEmpty() ? "" : list.get(0));
+        return m;
+    }
+    private Map<String, Object> convertToMap(GoodsItem g) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", g.getId());
+        m.put("sellerId", g.getSellerId());
+        m.put("title", g.getTitle());
+        m.put("description", g.getDescription());
+        m.put("price", g.getPrice());
+        m.put("category", g.getCategory());
+        m.put("itemType", g.getItemType());
+        m.put("status", g.getStatus());
+        m.put("createTime", g.getCreateTime());
+        m.put("updateTime", g.getUpdateTime());
+
+        // 【核心修改】映射四个统计字段给前端
+        m.put("viewCount", g.getViewCount() != null ? g.getViewCount() : 0);
+        m.put("likeCount", g.getFavCount() != null ? g.getFavCount() : 0); // 对应前端 ❤️
+        m.put("commentCount", g.getCommentCount() != null ? g.getCommentCount() : 0); // 对应前端 💬
+        m.put("chatCount", g.getChatCount() != null ? g.getChatCount() : 0); // 预留咨询数
 
         String cvs = g.getCoverUrls();
         List<String> list = new ArrayList<>();

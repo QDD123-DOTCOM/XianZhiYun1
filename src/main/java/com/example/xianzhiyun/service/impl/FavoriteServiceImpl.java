@@ -52,4 +52,32 @@ public class FavoriteServiceImpl implements FavoriteService {
         res.put("total", total);
         return res;
     }
+    @Service
+    public class FavoriteServiceImpl implements FavoriteService {
+        @Autowired
+        private FavoriteMapper favoriteMapper;
+        @Autowired
+        private GoodsMapper goodsMapper; // 注入 GoodsMapper
+
+        @Override
+        @Transactional
+        public void addFavorite(Long userId, Long goodsId) {
+            if (!isFavorited(userId, goodsId)) {
+                favoriteMapper.insert(userId, goodsId);
+                // 【核心修改】同步增加商品表的收藏数
+                goodsMapper.updateFavCount(goodsId, 1);
+            }
+        }
+
+        @Override
+        @Transactional
+        public void removeFavorite(Long userId, Long goodsId) {
+            if (isFavorited(userId, goodsId)) {
+                favoriteMapper.delete(userId, goodsId);
+                // 【核心修改】同步减少商品表的收藏数
+                goodsMapper.updateFavCount(goodsId, -1);
+            }
+        }
+        // ... 其他方法保持不变 ...
+    }
 }
