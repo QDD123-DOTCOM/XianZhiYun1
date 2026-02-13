@@ -25,7 +25,7 @@ public class CartController {
     private String imageBase;
 
     /**
-     * 修复 401：使用 @RequestAttribute("userId")
+     * 获取购物车列表
      */
     @GetMapping
     public JsonResult list(@RequestAttribute("userId") Long userId) {
@@ -51,30 +51,25 @@ public class CartController {
             Map<String, Object> m = new HashMap<>();
             m.put("goodsId", ci.getGoodsId());
             GoodsItem g = goodsMap.get(ci.getGoodsId());
+
             if (g != null) {
-                // 1. 优先从 coverUrls（逗号分隔）取第一张
+                // 【核心修改】：统一使用 coverUrls 和 title
                 String firstCover = "";
                 String cvs = g.getCoverUrls();
                 if (cvs != null && !cvs.isBlank()) {
                     String[] parts = cvs.split(",");
                     if (parts.length > 0) firstCover = parts[0].trim();
                 }
-                // 2. fallback 到旧字段 cover / coverUrl
-                if ((firstCover == null || firstCover.isBlank()) && g.getCover() != null && !g.getCover().isBlank()) {
-                    firstCover = g.getCover();
-                }
-                if ((firstCover == null || firstCover.isBlank()) && g.getCoverUrl() != null && !g.getCoverUrl().isBlank()) {
-                    firstCover = g.getCoverUrl();
-                }
-                // 3. 规范化 URL
+
+                // 规范化 URL
                 firstCover = normalizeUrl(firstCover);
 
                 m.put("cover", firstCover);
-                m.put("title", g.getTitle() != null ? g.getTitle() : g.getName());
+                m.put("title", g.getTitle() != null ? g.getTitle() : "未知商品");
                 m.put("price", g.getPrice());
             } else {
                 m.put("cover", "");
-                m.put("title", "");
+                m.put("title", "商品已失效");
                 m.put("price", 0);
             }
             m.put("quantity", ci.getQuantity() == null ? 1 : ci.getQuantity());
@@ -85,11 +80,10 @@ public class CartController {
     }
 
     /**
-     * 修复 401：使用 @RequestAttribute("userId")
+     * 获取购物车商品总数
      */
     @GetMapping("/count")
     public JsonResult count(@RequestAttribute("userId") Long userId) {
-        // JwtFilter 保证了 userId 存在
         List<CartItem> items = cartService.listByUser(userId);
         int count = 0;
         if (items != null) {
@@ -99,7 +93,7 @@ public class CartController {
     }
 
     /**
-     * 修复 401：使用 @RequestAttribute("userId")
+     * 添加商品到购物车
      */
     @PostMapping
     public JsonResult add(@RequestBody Map<String, Object> body, @RequestAttribute("userId") Long userId) {
@@ -122,7 +116,7 @@ public class CartController {
     }
 
     /**
-     * 修复 401：使用 @RequestAttribute("userId")
+     * 更新购物车商品数量
      */
     @PutMapping("/{goodsId}")
     public JsonResult updateQuantity(@PathVariable Long goodsId,
@@ -138,7 +132,7 @@ public class CartController {
     }
 
     /**
-     * 修复 401：使用 @RequestAttribute("userId")
+     * 从购物车移除单个商品
      */
     @DeleteMapping("/{goodsId}")
     public JsonResult delete(@PathVariable Long goodsId, @RequestAttribute("userId") Long userId) {
@@ -147,7 +141,7 @@ public class CartController {
     }
 
     /**
-     * 修复 401：使用 @RequestAttribute("userId")
+     * 批量移除购物车商品
      */
     @DeleteMapping
     public JsonResult clearByGoodsIds(@RequestParam(value = "goodsIds", required = false) String goodsIdsCsv,

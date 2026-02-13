@@ -217,7 +217,10 @@ public class GoodsController {
         return JsonResult.success(out);
     }
 
-    // 辅助方法：统一转 Map
+    /**
+     * 辅助方法：统一将 GoodsItem 转换为前端需要的 Map 格式
+     * 包含真实的统计数据：浏览量、喜欢数(收藏)、评论数、咨询数
+     */
     private Map<String, Object> convertToMap(GoodsItem g) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", g.getId());
@@ -230,46 +233,29 @@ public class GoodsController {
         m.put("status", g.getStatus());
         m.put("createTime", g.getCreateTime());
         m.put("updateTime", g.getUpdateTime());
+
+        // --- 核心修改：映射统计字段给前端 ---
+        // 浏览量
         m.put("viewCount", g.getViewCount() != null ? g.getViewCount() : 0);
-        m.put("favCount", g.getFavCount() != null ? g.getFavCount() : 0);
-        m.put("chatCount", g.getChatCount() != null ? g.getChatCount() : 0);
+        // 喜欢数（对应数据库中的收藏数 favCount）
+        m.put("likeCount", g.getFavCount() != null ? g.getFavCount() : 0);
+        // 评论数
         m.put("commentCount", g.getCommentCount() != null ? g.getCommentCount() : 0);
+        // 咨询数（根据您的逻辑，咨询即评论，所以映射 commentCount）
+        m.put("chatCount", g.getCommentCount() != null ? g.getCommentCount() : 0);
 
+        // 处理图片 URL
         String cvs = g.getCoverUrls();
         List<String> list = new ArrayList<>();
         if (cvs != null && !cvs.isBlank()) {
-            list = Arrays.stream(cvs.split(",")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+            list = Arrays.stream(cvs.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
         }
         m.put("coverUrls", list);
         m.put("coverUrl", list.isEmpty() ? "" : list.get(0));
-        return m;
-    }
-    private Map<String, Object> convertToMap(GoodsItem g) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", g.getId());
-        m.put("sellerId", g.getSellerId());
-        m.put("title", g.getTitle());
-        m.put("description", g.getDescription());
-        m.put("price", g.getPrice());
-        m.put("category", g.getCategory());
-        m.put("itemType", g.getItemType());
-        m.put("status", g.getStatus());
-        m.put("createTime", g.getCreateTime());
-        m.put("updateTime", g.getUpdateTime());
 
-        // 【核心修改】映射四个统计字段给前端
-        m.put("viewCount", g.getViewCount() != null ? g.getViewCount() : 0);
-        m.put("likeCount", g.getFavCount() != null ? g.getFavCount() : 0); // 对应前端 ❤️
-        m.put("commentCount", g.getCommentCount() != null ? g.getCommentCount() : 0); // 对应前端 💬
-        m.put("chatCount", g.getChatCount() != null ? g.getChatCount() : 0); // 预留咨询数
-
-        String cvs = g.getCoverUrls();
-        List<String> list = new ArrayList<>();
-        if (cvs != null && !cvs.isBlank()) {
-            list = Arrays.stream(cvs.split(",")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList());
-        }
-        m.put("coverUrls", list);
-        m.put("coverUrl", list.isEmpty() ? "" : list.get(0));
         return m;
     }
 }

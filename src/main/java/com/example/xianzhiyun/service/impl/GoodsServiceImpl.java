@@ -11,26 +11,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList; // 新增导入
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Goods 服务实现（包含二级筛选 itemType 支持）
- */
 @Service
 public class GoodsServiceImpl implements GoodsService {
     private static final Logger logger = LoggerFactory.getLogger(GoodsServiceImpl.class);
+
     @Autowired
     private GoodsMapper goodsMapper;
 
     @Autowired
     private GoodsItemMapper goodsItemMapper;
 
-    // 映射表：filterType -> 关键词列表（中文）
-    // 注意：List.of 需要 Java 9+；如果你使用 Java 8，请替换为 Arrays.asList(...)
     private static final Map<String, List<String>> FILTER_KEYWORD_MAP = new HashMap<>();
     static {
         FILTER_KEYWORD_MAP.put("official", List.of("手办","挂件","海报","T恤","徽章","周边","官方"));
@@ -47,23 +43,23 @@ public class GoodsServiceImpl implements GoodsService {
     public List<GoodsItem> listGoods(String categoryKey, String keyword, int page, int pageSize) {
         return listGoods(categoryKey, keyword, null, page, pageSize);
     }
+
     @Override
     public int countGoods(String categoryKey, String keyword) {
         return countGoods(categoryKey, keyword, null);
     }
+
     private String normalizeCategory(String key) {
         if (key == null) return null;
         key = key.trim();
         if (key.isEmpty()) return null;
         switch (key) {
-            case "数码":
-                return "电子";
-            case "电动车":
-                return "运动";
-            default:
-                return key;
+            case "数码": return "电子";
+            case "电动车": return "运动";
+            default: return key;
         }
     }
+
     @Override
     public List<GoodsItem> getMyGoods(Long sellerId, int page, int size) {
         int offset = (Math.max(page, 1) - 1) * size;
@@ -76,12 +72,13 @@ public class GoodsServiceImpl implements GoodsService {
     }
 
     @Override
+    @Transactional
     public GoodsItem getById(Long id) {
         GoodsItem item = goodsMapper.selectById(id);
         if (item != null) {
-            // 【核心修改】每次查询详情，浏览量 +1
+            // 【核心修改】：获取详情时增加浏览量
             goodsMapper.incrementViewCount(id);
-            // 更新当前对象的数值，保证本次返回给前端的数据是最新的
+            // 同步更新当前对象的数值返回
             item.setViewCount((item.getViewCount() == null ? 0 : item.getViewCount()) + 1);
         }
         return item;
@@ -115,25 +112,29 @@ public class GoodsServiceImpl implements GoodsService {
         goods.setCoverUrls(String.join(",", finalCoverUrls));
         goods.setStatus("PENDING");
         goods.setIsDeleted(0);
+
+        // 初始化统计字段
+        goods.setViewCount(0);
+        goods.setFavCount(0);
+        goods.setChatCount(0);
+        goods.setCommentCount(0);
+
         goodsMapper.insert(goods);
         return goods.getId();
     }
 
     @Override
+    @Transactional
     public void update(Long id, GoodsPublishDTO dto) {
         GoodsItem goods = goodsMapper.selectById(id);
-        if (goods == null) {
-            throw new RuntimeException("商品不存在");
-        }
+        if (goods == null) throw new RuntimeException("商品不存在");
 
         goods.setTitle(dto.getTitle());
         goods.setDescription(dto.getDescription());
         goods.setPrice(dto.getPrice());
         goods.setCategory(dto.getCategory());
-        // 新增：更新二级类型
         goods.setItemType(dto.getItemType());
 
-        // --- 核心修改：统一处理图片 URL 逻辑 (与 publish 方法相同) ---
         List<String> finalCoverUrls = new ArrayList<>();
         if (dto.getCoverUrls() != null && !dto.getCoverUrls().isEmpty()) {
             finalCoverUrls.addAll(dto.getCoverUrls().stream()
@@ -142,22 +143,17 @@ public class GoodsServiceImpl implements GoodsService {
         }
         if (dto.getCoverUrl() != null && !dto.getCoverUrl().trim().isEmpty()) {
             String singleUrl = dto.getCoverUrl().trim();
-            if (!finalCoverUrls.contains(singleUrl)) { // 避免重复添加
+            if (!finalCoverUrls.contains(singleUrl)) {
                 finalCoverUrls.add(singleUrl);
             }
         }
-
-        if (finalCoverUrls.isEmpty()) {
-            throw new IllegalArgumentException("请至少上传一张商品图片"); // 业务校验
-        }
+        if (finalCoverUrls.isEmpty()) throw new IllegalArgumentException("请至少上传一张商品图片");
         goods.setCoverUrls(String.join(",", finalCoverUrls));
-        // --- 核心修改结束 ---
 
         if ("ON_SALE".equals(goods.getStatus())) {
             goods.setStatus("PENDING");
             logger.info("商品ID {} 被卖家更新，状态重置为 PENDING 待审核。", id);
         }
-
         goodsMapper.update(goods);
     }
 
@@ -165,23 +161,11 @@ public class GoodsServiceImpl implements GoodsService {
     @Transactional
     public void delete(Long id, Long operatorId) {
         GoodsItem g = goodsMapper.selectById(id);
-        if (g == null) {
-            throw new IllegalArgumentException("商品不存在: id=" + id);
-        }
-
+        if (g == null) throw new IllegalArgumentException("商品不存在: id=" + id);
         if (g.getSellerId() == null || !g.getSellerId().equals(operatorId)) {
-            throw new SecurityException("无权限删除该商品: id=" + id + ", operator=" + operatorId);
+            throw new SecurityException("无权限删除该商品");
         }
-
-        String currentStatus = g.getStatus();
-        logger.debug("准备逻辑删除商品 id={}, operator={}, currentStatus={}", id, operatorId, currentStatus);
-
-        int updated = goodsMapper.logicalDelete(id);
-        if (updated <= 0) {
-            throw new RuntimeException("删除商品失败，记录可能已被删除或更新冲突: id=" + id);
-        }
-
-        logger.info("逻辑删除成功 id={}, operator={}, fromStatus={}", id, operatorId, currentStatus);
+        goodsMapper.logicalDelete(id);
     }
 
     @Override
@@ -211,16 +195,11 @@ public class GoodsServiceImpl implements GoodsService {
     @Override
     public Map<Long, GoodsItem> mapByIds(List<Long> ids) {
         Map<Long, GoodsItem> map = new HashMap<>();
-        if (ids == null || ids.isEmpty()) {
-            return map;
-        }
-
+        if (ids == null || ids.isEmpty()) return map;
         List<GoodsItem> list = goodsMapper.selectByIds(ids);
-        if (list != null && !list.isEmpty()) {
+        if (list != null) {
             for (GoodsItem g : list) {
-                if (g != null && g.getId() != null) {
-                    map.put(g.getId(), g);
-                }
+                if (g != null && g.getId() != null) map.put(g.getId(), g);
             }
         }
         return map;
@@ -242,39 +221,30 @@ public class GoodsServiceImpl implements GoodsService {
             List<String> kws = FILTER_KEYWORD_MAP.getOrDefault(ft, List.of(ft));
             params.put("filterKeywords", kws);
         }
-        logger.info("[GoodsServiceImpl] listGoods params = {}", params);
         return goodsMapper.selectGoodsList(params);
     }
+
     @Override
     public void delist(long goodsId, long sellerId){
         GoodsItem g = goodsMapper.selectById(goodsId);
-        if (g == null) {
-            throw new IllegalArgumentException("商品不存在: id=" + goodsId);
-        }
-        if (!g.getSellerId().equals(sellerId)) {
-            throw new SecurityException("无权限操作的商品: id=" + goodsId + ", operator=" + sellerId);
-        }
+        if (g == null) throw new IllegalArgumentException("商品不存在");
+        if (!g.getSellerId().equals(sellerId)) throw new SecurityException("无权限操作");
         this.updateStatus(goodsId,"OFF_SHELF");
-        logger.info("商品ID{}被下架成功", goodsId);
     }
 
     @Override
     public int countGoods(String categoryKey, String keyword, String filterType) {
         String normalizedCategory = normalizeCategory(categoryKey);
         String normalizedKeyword = (keyword == null || keyword.trim().isEmpty()) ? null : keyword.trim();
-
         Map<String, Object> params = new HashMap<>();
         params.put("category", normalizedCategory);
         params.put("keyword", normalizedKeyword);
-
         if (filterType != null && !filterType.trim().isEmpty()) {
             String ft = filterType.trim();
             params.put("itemType", ft);
             List<String> kws = FILTER_KEYWORD_MAP.getOrDefault(ft, List.of(ft));
             params.put("filterKeywords", kws);
         }
-
-        logger.info("[GoodsServiceImpl] countGoods params = {}", params);
         return goodsMapper.selectGoodsCount(params);
     }
 
@@ -291,33 +261,10 @@ public class GoodsServiceImpl implements GoodsService {
     @Override
     public void updateStatus(Long id, String status) {
         GoodsItem g = goodsMapper.selectById(id);
-        if (g == null) throw new IllegalArgumentException("商品不存在: " + id);
-
-        if (g.getIsDeleted() != null && g.getIsDeleted() == 1) {
-            throw new IllegalArgumentException("商品已被删除，无法修改状态: " + id);
-        }
-
-        // 与数据库枚举一致的允许集
-        final java.util.Set<String> ALLOWED =
-                java.util.Set.of("DRAFT", "PENDING", "ON_SALE", "SOLD", "REJECTED", "DELETED","OFF_SHELF");
-
-        if (status == null || !ALLOWED.contains(status)) {
-            throw new IllegalArgumentException("Invalid status value: " + status);
-        }
-
-        final int maxLen = 32;
-        if (status.length() > maxLen) {
-            status = status.substring(0, maxLen);
-        }
-
+        if (g == null) throw new IllegalArgumentException("商品不存在");
+        final java.util.Set<String> ALLOWED = java.util.Set.of("DRAFT", "PENDING", "ON_SALE", "SOLD", "REJECTED", "DELETED","OFF_SHELF");
+        if (status == null || !ALLOWED.contains(status)) throw new IllegalArgumentException("Invalid status");
         g.setStatus(status);
-        try {
-            goodsMapper.update(g);
-        } catch (Exception e) {
-            logger.error("updateStatus 更新商品状态失败 id={}, status={}, error={}", id, status, e.getMessage(), e);
-            throw e;
-        }
+        goodsMapper.update(g);
     }
-    // GoodsServiceImpl.java
-
 }

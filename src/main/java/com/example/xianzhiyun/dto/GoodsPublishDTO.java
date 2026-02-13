@@ -2,10 +2,10 @@ package com.example.xianzhiyun.dto;
 
 import lombok.Data;
 import java.util.List;
-// 核心修改：将 javax 替换为 jakarta
+import java.math.BigDecimal; // 1. 必须导入 BigDecimal
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-// import jakarta.validation.constraints.NotEmpty; // <-- 移除此行
+import jakarta.validation.constraints.NotNull; // 2. 建议增加 NotNull 校验
 
 /**
  * 商品发布和更新请求参数 DTO
@@ -18,16 +18,19 @@ public class GoodsPublishDTO {
 
     private String description;
 
-    // 价格必须大于等于 0.01
+    /**
+     * 核心修改：将 Double 更改为 BigDecimal
+     * 解决 'setPrice(java.math.BigDecimal)' 无法应用于 Double 的问题
+     */
+    @NotNull(message = "价格不能为空")
     @DecimalMin(value = "0.01", message = "价格必须大于0")
-    private Double price;
+    private BigDecimal price;
 
     @NotBlank(message = "分类不能为空")
     private String category;
 
     /**
      * 核心：接收小程序上传的图片URL数组。
-     * 注意：移除了 @NotEmpty 注解，校验逻辑转移到 Service 层。
      */
     private List<String> coverUrls;
 
@@ -37,7 +40,7 @@ public class GoodsPublishDTO {
     private String coverUrl;
 
     /**
-     * 可选：商品二级类型（周边类型），例如 official / limited / collectible / practical / diy / digital / ticket / device
+     * 可选：商品二级类型（周边类型）
      */
     private String itemType;
 }

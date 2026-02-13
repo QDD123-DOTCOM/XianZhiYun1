@@ -2,6 +2,7 @@ package com.example.xianzhiyun.service.impl;
 
 import com.example.xianzhiyun.entity.Comment;
 import com.example.xianzhiyun.mapper.CommentMapper;
+import com.example.xianzhiyun.mapper.GoodsMapper;
 import com.example.xianzhiyun.service.CommentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,12 +22,12 @@ public class CommentServiceImpl implements CommentService {
     @Autowired
     private CommentMapper commentMapper;
 
+    @Autowired
+    private GoodsMapper goodsMapper; // 注入 GoodsMapper 用于同步更新计数
+
     @Override
     public List<Comment> getCommentsByGoodsId(Long goodsId, int offset, int limit) {
-        // 简单校验
-        if (goodsId == null) {
-            return List.of(); // 返回空列表而不是报错
-        }
+        if (goodsId == null) return List.of();
         return commentMapper.selectByGoodsId(goodsId, offset, limit);
     }
 
@@ -38,11 +39,8 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    // 【关键修改点】：增加 Byte rating 参数，与 CommentService 接口保持一致
     public void addComment(Long goodsId, Long userId, String content, Byte rating) {
-        // 1. 参数强校验
         if (goodsId == null || userId == null) {
-            logger.error("发布评论失败：参数缺失 goodsId={}, userId={}", goodsId, userId);
             throw new IllegalArgumentException("参数错误：无法识别商品或用户");
         }
 
@@ -50,57 +48,22 @@ public class CommentServiceImpl implements CommentService {
             throw new IllegalArgumentException("评论内容不能为空");
         }
 
-        // 2. 构建对象
         Comment c = new Comment();
         c.setGoodsId(goodsId);
         c.setUserId(userId);
-        c.setContent(content.trim()); // 去除首尾空格
-
-        // 显式设置 articleId 为 null，表明这是商品评论（防止 Mapper 误判）
+        c.setContent(content.trim());
         c.setArticleId(null);
-
-        // 3. 设置核心字段
         c.setCreateTime(LocalDateTime.now());
-        // 【关键修改点】：使用传入的 rating 参数，如果为 null 则默认给 5 分
         c.setRating(rating != null ? rating : (byte) 5);
 
-        // 4. 插入数据库
         int rows = commentMapper.insert(c);
         if (rows <= 0) {
-            logger.error("评论插入数据库失败，goodsId={}", goodsId);
-            throw new RuntimeException("评论发布失败，请稍后重试");
+            throw new RuntimeException("评论发布失败");
         }
 
-        logger.info("用户 {} 对商品 {} 发布了评论，评分为 {}", userId, goodsId, c.getRating());
-    }
-    // CommentServiceImpl.java
-    @Service
-    public class CommentServiceImpl implements CommentService {
-        @Autowired
-        private CommentMapper commentMapper;
-        @Autowired
-        private GoodsMapper goodsMapper; // 注入 GoodsMapper
+        // 【核心修改】：评论成功后，同步增加商品表的评论数（咨询数）
+        goodsMapper.updateCommentCount(goodsId, 1);
 
-        @Override
-        @Transactional
-        public void addComment(Long goodsId, Long userId, String content, Byte rating) {
-            // ... 原有参数校验逻辑 ...
-
-            Comment c = new Comment();
-            c.setGoodsId(goodsId);
-            c.setUserId(userId);
-            c.setContent(content.trim());
-            c.setCreateTime(LocalDateTime.now());
-            c.setRating(rating != null ? rating : (byte) 5);
-
-            int rows = commentMapper.insert(c);
-            if (rows > 0) {
-                // 【核心修改】同步增加商品表的评论数（即前端显示的咨询数）
-                goodsMapper.updateCommentCount(goodsId, 1);
-            } else {
-                throw new RuntimeException("评论发布失败");
-            }
-        }
-        // ... 其他方法保持不变 ...
+        logger.info("用户 {} 对商品 {} 发布了咨询/评论", userId, goodsId);
     }
 }
