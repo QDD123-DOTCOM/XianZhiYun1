@@ -38,6 +38,10 @@ public interface CommunityService {
     void addArticleComment(Long userId, Long articleId, String content);
 
     // === 新增：商品推荐社区功能 ===
+
+    // 在 CommunityServiceImpl.java 中添加
+    List<CommunityDTO> listMyJoinedCommunities(Long userId);
+
     /**
      * 根据商品ID获取推荐社区
      * @param goodsId 商品ID

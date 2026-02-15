@@ -5,13 +5,9 @@
 
 <mapper namespace="com.example.xianzhiyun.mapper.GoodsMapper">
 
-    <!-- 基础商品结果映射（增加 item_type -> itemType） -->
+    <!-- 基础商品结果映射（包含所有字段，包括统计字段） -->
     <resultMap id="GoodsResultMap" type="com.example.xianzhiyun.entity.GoodsItem">
         <id column="id" property="id" />
-        <result column="view_count" property="viewCount"/>
-        <result column="fav_count" property="favCount"/>
-        <result column="chat_count" property="chatCount"/>
-        <result column="comment_count" property="commentCount"/>
         <result column="seller_id" property="sellerId" />
         <result column="title" property="title" />
         <result column="description" property="description" />
@@ -23,16 +19,33 @@
         <result column="create_time" property="createTime" />
         <result column="update_time" property="updateTime" />
         <result column="is_deleted" property="isDeleted" />
+        <result column="view_count" property="viewCount"/>
+        <result column="fav_count" property="favCount"/>
+        <result column="chat_count" property="chatCount"/>
+        <result column="comment_count" property="commentCount"/>
     </resultMap>
 
-    <!-- Admin专用的结果映射，继承GoodsResultMap，并假设GoodsItem或其DTO中包含sellerName字段 -->
+    <!-- 【新增】首页推荐查询：获取最新上架的商品 -->
+    <select id="selectRecommend" resultMap="GoodsResultMap" parameterType="int">
+        SELECT
+            id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted,
+            view_count, fav_count, chat_count, comment_count
+        FROM goods_item
+        WHERE status = 'ON_SALE' AND is_deleted = 0
+        ORDER BY create_time DESC
+            LIMIT #{limit}
+    </select>
+
+    <!-- Admin专用的结果映射 -->
     <resultMap id="AdminGoodsResultMap" type="com.example.xianzhiyun.entity.GoodsItem" extends="GoodsResultMap">
         <result column="seller_nickname" property="sellerName" />
     </resultMap>
 
-    <!-- Admin查询的通用列，包含卖家昵称 -->
+    <!-- Admin查询的通用列 -->
     <sql id="AdminGoodsColumns">
-        g.id, g.seller_id, g.title, g.description, g.price, g.category, g.cover_urls, g.item_type, g.status, g.create_time, g.update_time, g.is_deleted, u.nickname AS seller_nickname
+        g.id, g.seller_id, g.title, g.description, g.price, g.category, g.cover_urls, g.item_type, g.status, g.create_time, g.update_time, g.is_deleted,
+        g.view_count, g.fav_count, g.chat_count, g.comment_count,
+        u.nickname AS seller_nickname
     </sql>
 
     <!-- 管理端商品列表查询 -->
@@ -76,9 +89,6 @@
             <if test="status != null and status != ''">
                 AND g.status = #{status}
             </if>
-            <if test="sellerId != null">
-                AND g.seller_id = #{sellerId}
-            </if>
             <if test="keyword != null and keyword != ''">
                 AND (g.title LIKE CONCAT('%', #{keyword}, '%')
                 OR g.description LIKE CONCAT('%', #{keyword}, '%'))
@@ -92,15 +102,15 @@
         </where>
     </select>
 
-
-    <!-- 以下为用户端或通用查询，包含 item_type 支持 -->
-
-    <!-- 根据参数构造通用商品列表（带 is_deleted 过滤） -->
+    <!-- 根据参数构造通用商品列表 -->
     <select id="selectGoodsList" resultMap="GoodsResultMap" parameterType="map">
-        SELECT id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted
+        SELECT
+        id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted,
+        view_count, fav_count, chat_count, comment_count
         FROM goods_item
         <where>
             AND is_deleted = 0
+            AND status = 'ON_SALE'
             <if test="keyword != null and keyword != ''">
                 AND (title LIKE CONCAT('%', #{keyword}, '%')
                 OR description LIKE CONCAT('%', #{keyword}, '%'))
@@ -108,8 +118,6 @@
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-
-            <!-- 优先使用精确的 item_type 过滤；若没有 itemType，再使用 filterKeywords 回退模糊匹配 -->
             <choose>
                 <when test="itemType != null and itemType != ''">
                     AND item_type = #{itemType}
@@ -125,7 +133,6 @@
                     )
                 </when>
             </choose>
-
         </where>
         ORDER BY create_time DESC
         <if test="limit != null">
@@ -138,6 +145,7 @@
         FROM goods_item
         <where>
             AND is_deleted = 0
+            AND status = 'ON_SALE'
             <if test="keyword != null and keyword != ''">
                 AND (title LIKE CONCAT('%', #{keyword}, '%')
                 OR description LIKE CONCAT('%', #{keyword}, '%'))
@@ -145,7 +153,6 @@
             <if test="category != null and category != ''">
                 AND category = #{category}
             </if>
-
             <choose>
                 <when test="itemType != null and itemType != ''">
                     AND item_type = #{itemType}
@@ -161,12 +168,13 @@
                     )
                 </when>
             </choose>
-
         </where>
     </select>
 
     <select id="selectBySellerId" resultMap="GoodsResultMap" parameterType="map">
-        SELECT id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted
+        SELECT
+            id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted,
+            view_count, fav_count, chat_count, comment_count
         FROM goods_item
         WHERE seller_id = #{sellerId} AND is_deleted = 0
         ORDER BY create_time DESC
@@ -180,14 +188,18 @@
     </select>
 
     <select id="selectById" resultMap="GoodsResultMap" parameterType="long">
-        SELECT id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted
+        SELECT
+            id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted,
+            view_count, fav_count, chat_count, comment_count
         FROM goods_item
         WHERE id = #{id} AND is_deleted = 0
     </select>
 
     <insert id="insert" parameterType="com.example.xianzhiyun.entity.GoodsItem" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO goods_item (seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted)
-        VALUES (#{sellerId}, #{title}, #{description}, #{price}, #{category}, #{coverUrls}, #{itemType}, #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, #{isDeleted})
+        INSERT INTO goods_item (seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted,
+                                view_count, fav_count, chat_count, comment_count)
+        VALUES (#{sellerId}, #{title}, #{description}, #{price}, #{category}, #{coverUrls}, #{itemType}, #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, #{isDeleted},
+                #{viewCount}, #{favCount}, #{chatCount}, #{commentCount})
     </insert>
 
     <update id="update" parameterType="com.example.xianzhiyun.entity.GoodsItem">
@@ -203,7 +215,6 @@
         WHERE id = #{id} AND is_deleted = 0
     </update>
 
-    <!-- 逻辑删除：设置 is_deleted = 1 -->
     <update id="logicalDelete" parameterType="long">
         UPDATE goods_item
         SET is_deleted = 1,
@@ -213,7 +224,9 @@
     </update>
 
     <select id="selectByIds" resultMap="GoodsResultMap" parameterType="list">
-        SELECT id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted
+        SELECT
+        id, seller_id, title, description, price, category, cover_urls, item_type, status, create_time, update_time, is_deleted,
+        view_count, fav_count, chat_count, comment_count
         FROM goods_item
         WHERE id IN
         <foreach item="item" index="index" collection="list" open="(" separator="," close=")">
@@ -221,6 +234,7 @@
         </foreach>
         AND is_deleted = 0
     </select>
+
     <update id="incrementViewCount">
         UPDATE goods_item SET view_count = view_count + 1 WHERE id = #{id}
     </update>
@@ -236,6 +250,5 @@
     <update id="incrementChatCount">
         UPDATE goods_item SET chat_count = chat_count + 1 WHERE id = #{id}
     </update>
-
 
 </mapper>

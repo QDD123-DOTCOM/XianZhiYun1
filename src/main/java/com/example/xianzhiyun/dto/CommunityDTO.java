@@ -12,6 +12,9 @@ public class CommunityDTO {
     private Integer topicCount;
     private List<ArticleDTO> latestArticles;
 
+    // 【新增字段】：用于存储当前用户是否已加入该社区的状态
+    private boolean isJoined;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -35,4 +38,13 @@ public class CommunityDTO {
 
     public List<ArticleDTO> getLatestArticles() { return latestArticles; }
     public void setLatestArticles(List<ArticleDTO> latestArticles) { this.latestArticles = latestArticles; }
+
+    // 【修正 Getter/Setter】：确保逻辑正确
+    public boolean isJoined() {
+        return isJoined;
+    }
+
+    public void setJoined(boolean joined) {
+        isJoined = joined;
+    }
 }

@@ -25,6 +25,8 @@ public class JwtFilter implements Filter {
             "/api/auth/login",
             "/api/auth/register",
             "/api/admin/login",
+            "/api/home",          // 【新增】放行首页数据接口
+            "/api/goods",         // 【新增】放行商品列表接口
             "/images/",
             "/static/"
     );
@@ -34,7 +36,7 @@ public class JwtFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
 
-        // 1. 跨域处理
+        // 1. 跨域处理 (保持不变)
         String origin = request.getHeader("Origin");
         response.setHeader("Access-Control-Allow-Origin", origin != null ? origin : "*");
         response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -42,7 +44,7 @@ public class JwtFilter implements Filter {
         response.setHeader("Access-Control-Max-Age", "3600");
         response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, token");
 
-        // 2. 处理 OPTIONS 预检请求
+        // 2. 处理 OPTIONS 预检请求 (保持不变)
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             response.setStatus(HttpServletResponse.SC_OK);
             return;
@@ -52,12 +54,15 @@ public class JwtFilter implements Filter {
         String path = request.getRequestURI();
         System.out.println("--- 收到请求: " + path + " ---");
 
-        // 4. 检查白名单 (使用更严谨的匹配逻辑)
-        boolean isExcluded = EXCLUDED_PATHS.stream().anyMatch(excluded -> {
+        // 4. 检查白名单
+        // 特殊处理：如果是获取商品详情 (/api/goods/123)，也应该放行
+        boolean isGoodsDetail = path.startsWith("/api/goods/") && "GET".equalsIgnoreCase(request.getMethod());
+
+        boolean isExcluded = isGoodsDetail || EXCLUDED_PATHS.stream().anyMatch(excluded -> {
             if (excluded.endsWith("/")) {
                 return path.contains(excluded); // 匹配静态资源目录
             }
-            return path.equals(excluded) || path.endsWith(excluded); // 匹配具体接口
+            return path.equals(excluded); // 匹配具体接口
         });
 
         if (isExcluded) {
@@ -66,7 +71,7 @@ public class JwtFilter implements Filter {
             return;
         }
 
-        // 5. 获取 Token
+        // 5. 获取 Token (保持不变)
         String token = null;
         String authHeader = request.getHeader("Authorization");
         if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
@@ -76,9 +81,7 @@ public class JwtFilter implements Filter {
             token = request.getHeader("token");
         }
 
-        System.out.println("最终提取的 Token: " + token);
-
-        // 6. 验证 Token
+        // 6. 验证 Token (保持不变)
         boolean isValid = false;
         try {
             if (StringUtils.hasText(token)) {
@@ -90,9 +93,7 @@ public class JwtFilter implements Filter {
 
         if (isValid) {
             try {
-                // 注意：这里从 token 拿的是 "uid"，必须和生成 token 时一致
                 Long userId = jwtUtil.getClaimLong(token, "uid");
-                System.out.println("JwtFilter: 验证成功，用户ID: " + userId);
                 request.setAttribute("userId", userId);
                 chain.doFilter(request, response);
             } catch (Exception e) {

@@ -10,7 +10,7 @@ import com.example.xianzhiyun.service.CommunityCategoryService;
 import com.example.xianzhiyun.service.CommunityService;
 import com.example.xianzhiyun.utils.JsonResult;
 import com.example.xianzhiyun.utils.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest; // 【修改点1】使用 jakarta 包
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +29,7 @@ public class CommunityController {
     private CommunityCategoryService categoryService;
 
     @Autowired
-    private JwtUtil jwtUtil; // 【修改点2】注入 JwtUtil 实例，而不是静态调用
+    private JwtUtil jwtUtil;
 
     // ================= 社区相关 =================
 
@@ -43,6 +43,16 @@ public class CommunityController {
         data.put("items", items);
         data.put("total", total);
         return JsonResult.ok(data);
+    }
+
+    /**
+     * 【补全接口】：获取我加入的社区列表
+     * 对应前端请求：GET /api/community/my
+     */
+    @GetMapping("/community/my")
+    public JsonResult listMy(@RequestAttribute("userId") Long userId) {
+        List<CommunityDTO> list = communityService.listMyJoinedCommunities(userId);
+        return JsonResult.ok(list);
     }
 
     @GetMapping("/community/detail/{id}")
@@ -141,15 +151,11 @@ public class CommunityController {
         return JsonResult.ok("评论成功");
     }
 
-    // ================= 新增：商品推荐社区接口 =================
-    /**
-     * 获取商品详情页推荐社区
-     */
+    // ================= 商品推荐社区接口 =================
     @GetMapping("/community/recommend")
     public JsonResult<CommunityRecommendDTO> getRecommendedCommunity(@RequestParam Long goodsId, HttpServletRequest request) {
         Long userId = null;
         try {
-            // 【修改点3】直接使用注入的 jwtUtil 实例的方法，更加简洁安全
             userId = jwtUtil.getUserIdFromRequest(request);
         } catch (Exception e) {
             System.err.println("Failed to get userId from token: " + e.getMessage());

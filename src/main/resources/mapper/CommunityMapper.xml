@@ -1,66 +1,74 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.xianzhiyun.mapper.CommunityMapper">
 
-    <resultMap id="CommunityBaseResultMap" type="com.example.xianzhiyun.entity.Community">
-        <id column="id" property="id"/>
-        <result column="name" property="name"/>
-        <result column="category_key" property="categoryKey"/>
-        <result column="description" property="description"/>
-        <result column="cover_url" property="coverUrl"/>
-        <result column="creator_id" property="creatorId"/>
-        <result column="member_count" property="memberCount"/>
-        <result column="topic_count" property="topicCount"/>
-        <result column="status" property="status"/>
-        <result column="create_time" property="createTime"/>
+    <!-- 确保这个 resultMap 只定义一次 -->
+    <resultMap id="CommunityResultMap" type="com.example.xianzhiyun.entity.Community">
+        <id column="id" property="id" />
+        <result column="name" property="name" />
+        <result column="category_key" property="categoryKey" />
+        <result column="description" property="description" />
+        <result column="cover_url" property="coverUrl" />
+        <result column="creator_id" property="creatorId" />
+        <result column="member_count" property="memberCount" />
+        <result column="topic_count" property="topicCount" />
+        <result column="status" property="status" />
+        <result column="create_time" property="createTime" />
     </resultMap>
 
-    <insert id="insert" parameterType="com.example.xianzhiyun.entity.Community" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO community (name, category_key, description, cover_url, creator_id, member_count, topic_count, status, create_time)
-        VALUES (#{name}, #{categoryKey}, #{description}, #{coverUrl}, #{creatorId}, #{memberCount}, #{topicCount}, #{status}, #{createTime})
-    </insert>
-
-    <select id="selectById" parameterType="long" resultMap="CommunityBaseResultMap">
-        SELECT * FROM community WHERE id = #{id} LIMIT 1
+    <!-- 查询我加入的社区 -->
+    <select id="selectMyJoined" resultMap="CommunityResultMap">
+        SELECT c.*
+        FROM community c
+                 INNER JOIN community_member cm ON c.id = cm.community_id
+        WHERE cm.user_id = #{userId}
+        ORDER BY cm.join_time DESC
     </select>
 
-    <!-- 核心查询逻辑：如果 categoryKey 为 null，则不拼接 AND 语句，查询所有 -->
-    <select id="selectByCategory" resultMap="CommunityBaseResultMap">
+    <!-- 列表查询：核心修正点 -->
+    <select id="selectByCategory" resultMap="CommunityResultMap">
         SELECT * FROM community
-        WHERE status = 'ACTIVE'
-        <if test="categoryKey != null and categoryKey != ''">
-            AND category_key = #{categoryKey}
-        </if>
-        ORDER BY member_count DESC, create_time DESC
+        <where>
+            <if test="categoryKey != null">
+                AND category_key = #{categoryKey}
+            </if>
+            AND status = 'ACTIVE'
+        </where>
+        ORDER BY member_count DESC
         LIMIT #{offset}, #{limit}
     </select>
 
+    <!-- 统计查询：核心修正点 -->
     <select id="countByCategory" resultType="int">
-        SELECT COUNT(1) FROM community
-        WHERE status = 'ACTIVE'
-        <if test="categoryKey != null and categoryKey != ''">
-            AND category_key = #{categoryKey}
-        </if>
+        SELECT COUNT(*) FROM community
+        <where>
+            <if test="categoryKey != null">
+                AND category_key = #{categoryKey}
+            </if>
+            AND status = 'ACTIVE'
+        </where>
     </select>
 
-    <update id="incrementMemberCount" parameterType="long">
+    <select id="selectById" resultMap="CommunityResultMap">
+        SELECT * FROM community WHERE id = #{id}
+    </select>
+
+    <update id="incrementMemberCount">
         UPDATE community SET member_count = member_count + 1 WHERE id = #{id}
     </update>
 
-    <update id="decrementMemberCount" parameterType="long">
-        UPDATE community SET member_count = GREATEST(member_count - 1, 0) WHERE id = #{id}
+    <update id="decrementMemberCount">
+        UPDATE community SET member_count = member_count - 1 WHERE id = #{id} AND member_count > 0
     </update>
 
-    <update id="incrementTopicCount" parameterType="long">
+    <update id="incrementTopicCount">
         UPDATE community SET topic_count = topic_count + 1 WHERE id = #{id}
     </update>
-    <!-- 新增：根据 category_key 查询社区列表，用于推荐 -->
-    <select id="selectByCommunityCategoryKey" resultMap="CommunityBaseResultMap">
+
+    <select id="selectByCommunityCategoryKey" resultMap="CommunityResultMap">
         SELECT * FROM community
-        WHERE status = 'ACTIVE' AND category_key = #{categoryKey}
-        ORDER BY member_count DESC, create_time DESC
+        WHERE category_key = #{categoryKey} AND status = 'ACTIVE'
+        ORDER BY member_count DESC
     </select>
 
 </mapper>
